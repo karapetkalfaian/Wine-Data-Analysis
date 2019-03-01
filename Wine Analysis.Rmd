@@ -1,0 +1,729 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+#Wine Analysis
+##What Makes the Best Tasting Wine
+
+```{r echo=FALSE}
+#Package Installation
+install.packages("Rcpp")
+install.packages('GGally')
+install.packages('scales')
+install.packages('memisc')
+install.packages('lattice')
+install.packages('MASS')
+install.packages('car')
+install.packages('reshape')
+install.packages('plyr')
+install.packages('gridExtra')
+install.packages('dplyr')
+install.packages('readxl')
+install.packages("corrplot")
+install.packages('PerformanceAnalytics')
+install.packages('ggplot2')
+
+
+
+library(PerformanceAnalytics)
+library(corrplot)
+library(ggplot2)
+library(GGally)
+library(scales)
+library(memisc)
+library(RColorBrewer)
+library(gridExtra)
+library(dplyr)
+library(readxl)
+
+
+
+
+
+
+```
+```{r}
+chooseCRANmirror(graphics=FALSE, ind=1)
+knitr::opts_chunk$set(echo = TRUE)
+#Upload Wine Data(2 Data Sets Red and White are Seperate) into R
+#Make new Attribute Type
+#Combine Both Data Sets
+#Show a snippet of Data and structure of data and its attributes
+getwd()
+setwd("C:/Users/karapet/Downloads")
+# setwd("C:/Users/karap.DESKTOP-LML0R5F/Downloads")
+
+redwine<-read.csv("C:/Users/karapet/Downloads/wineQualityReds.csv",header=TRUE,sep=",")
+whitewine<-read.csv("C:/Users/karapet/Downloads/wineQualityWhites.csv",header=TRUE,sep=",")
+
+
+redwine<-subset(redwine,select=-X)
+whitewine<-subset(whitewine,select = -X)
+
+redwine$type<-"Red"
+whitewine$type<-"White"
+
+allwine<-rbind(redwine,whitewine)
+
+allwine$taste<-cut(allwine$quality,breaks=c(0,3,4,5,6,7,8,9),labels=c("Very Bad","Bad","Slightly Bad","Slightly Good","Good","Very Good","Best"))
+
+head(allwine)
+
+str(allwine)
+```
+
+#Description of Data
+Are data set contains 6497 observations and has 12 variables.
+
+##Wine Data Attbriutes Descriptions:
+
+1 - fixed acidity: most acids involved with wine or fixed or nonvolatile (do not evaporate readily)
+
+2 - volatile acidity: the amount of acetic acid in wine, which at too high of levels can lead to an unpleasant, vinegar taste
+
+3 - citric acid: found in small quantities, citric acid can add 'freshness' and flavor to wines
+
+4 - residual sugar: the amount of sugar remaining after fermentation stops, it's rare to find wines with less than 1 gram/liter and wines with greater than 45 grams/liter are considered sweet
+
+5 - chlorides: the amount of salt in the wine
+
+6 - free sulfur dioxide: the free form of SO2 exists in equilibrium between molecular SO2 (as a dissolved gas) and bisulfite ion; it prevents microbial growth and the oxidation of wine
+
+7 - total sulfur dioxide: amount of free and bound forms of S02; in low concentrations, SO2 is mostly undetectable in wine, but at free SO2 concentrations over 50 ppm, SO2 becomes evident in the nose and taste of wine
+
+8 - density: the density of water is close to that of water depending on the percent alcohol and sugar content
+
+9 - pH: describes how acidic or basic a wine is on a scale from 0 (very acidic) to 14 (very basic); most wines are between 3-4 on the pH scale
+
+10 - sulphates: a wine additive which can contribute to sulfur dioxide gas (S02) levels, which acts as an antimicrobial and antioxidant
+
+11 - alcohol: the percent alcohol content of the wine
+
+   Output variable (based on sensory data): 
+12 - quality (score between 0 and 10)
+
+13 - Type: indicates type of wine(Red or White)
+
+14- Taste: indicates the grading of how good the wine tasted in all factors
+
+## Summary Statistics:
+
+```{r}
+summary(allwine)
+```
+
+
+#Looking at Each Attribute Graphically
+##Locating how each attribute datas is structured in regards to composition
+```{r}
+
+ggplot(aes(x=fixed.acidity),data=allwine)+
+  geom_histogram(bins = 80)+
+  ggtitle("Fixed Acidity Composition")
+```
+
+The acid levels follow a normal distrubution pattern, with the overall density equating towards 7 to 9 percent.
+```{r}
+ggplot(aes(x=alcohol),data=allwine)+
+  geom_histogram(bins = 80)+
+  ggtitle("Alcohol Composition")
+
+```
+
+The overall alcohol of the wines found peak at around 7 percent and slowly decays, as the percentage of alcohol rises. This would be expected as most wines come in at around 5 to 8 percent, and higher alcohol percentage wines are rarer. This could be as most people do not want to be intoxicated after drinking wine, and we may look at data seeing when wine is typically enjoyed, pheraps part of a meal?
+
+
+```{r}
+ggplot(aes(x=citric.acid),data=allwine)+
+  geom_histogram(bins = 80)+
+  ggtitle("Citric Acid Composition")
+```
+
+The addition of citric acid in wines increase the overall freshness of the wine, looking at our data we can see that there is a normal distriubiton in our sample. Most of our data indicates that the wines have no citric acid or are less than .50.
+
+
+```{r}
+ggplot(aes(x=citric.acid),data=allwine)+
+  coord_cartesian(xlim =c(0, 0.50))+
+  geom_histogram(bins = 100)+
+  ggtitle("Citric Acid Composition - ZOOMED IN")
+```
+
+
+
+```{r}
+ggplot(aes(x=quality),data=allwine)+
+  geom_histogram(bins = 80)+
+  scale_x_continuous(limits = c(3,9), breaks=seq(3,9,1))+
+  ggtitle("Quality of Wine - Numerically")
+```
+
+The quality of the wine in our data sample, indicate that most of our wines were average or around 5 and 6. This may indicate that the having the following attributes in acidity and alcohol, may only suffice to an average tasting wine. What would be the difference between the best quality wine and the worst in our sample? May be interseting to see. 
+```{r}
+ggplot(aes(x=total.sulfur.dioxide),data = allwine)+
+  geom_histogram(bins=80)+
+  ggtitle("Sulfur Dioxide Composition")
+```
+Sulfur dioxide as been know to change the quality of wine taste and smell, it would be nice to see if higher or lower quantities are preferred in our sample.There are outliers in our pool that are shifting the view of our overall graph, so lets zoom in towards the 95 perentile being our max.
+```{r}
+ggplot(aes(x=total.sulfur.dioxide),data=allwine)+
+  coord_cartesian(xlim = c(0,quantile(allwine$total.sulfur.dioxide,.95)))+
+  geom_histogram(bins=80)+
+  ggtitle("Sulfur Dioxide Composition - 95 Percentile ")
+  
+
+```
+
+```{r}
+ggplot(aes(x=chlorides),data=allwine)+
+  geom_histogram(bins=80)+
+  ggtitle("Chloride Composition")
+```
+
+Chlorides are how salty the wine is, overall it looks like most of our data is found between 0 and .2, with a few going towards more salty.
+
+###Sugar A Deeper Look
+```{r}
+ggplot(aes(x=residual.sugar),data = allwine)+
+  geom_histogram(bins=80)+
+  ggtitle("Residual Sugar Composition")
+
+```
+Sugar in wines can be a reason some like or dislike wine. The way one can indicate how sweet a wine is by the following factors: it's rare to find wines with less than 1 gram/liter and wines with greater than 45 grams/liter are considered sweet.
+
+
+```{r}
+summary(allwine$residual.sugar)
+```
+Wines in are data pool tend to be suttle sweet as you see none coming anywhere close to 45, with our mean being 5.433 g/l. We do have some outliers that go above 45 g/l.
+
+```{r}
+ggplot(aes(x=residual.sugar),data=allwine)+
+  geom_histogram(aes(color=type),bins=100)+
+  scale_x_continuous(limits=c(0,quantile(allwine$residual.sugar,.99)), breaks=seq(0,quantile(allwine$residual.sugar,.99),1))+
+  ggtitle("Residual Sugar Composition by Type of Wine")
+```
+
+```{r}
+ggplot(aes(x=density),data=allwine)+
+  geom_histogram(bins=80)+
+  ggtitle("Density Composition")
+
+
+```
+
+The density of wines are around what waters density is which is 1 g/l and you can see that our wines flucuate to be a little lower in density, which would be caused by sugar and alcohol contents.
+
+```{r}
+ggplot(aes(x=pH),data=allwine)+
+  geom_histogram(bins=80)+
+  ggtitle("pH Composition")
+
+```
+pH levels for most wines linger around 3 to 4 and our data pool is no different, the majority of the our wines are around 3.3.There is also a normal distribution for our wines pH levels.
+```{r}
+ggplot(aes(x=type),data=allwine)+
+  geom_histogram(bins=2,stat="count")+
+  ggtitle("Wine Type Composition")
+
+
+```
+Our data sample for wines are more towards the whites, with the red wine only equating towards 25% of our total samples. It would be good to see where quality and alcohol changes depending on th type of wine.
+
+###Ratio of Red Wines
+```{r}
+length(which(allwine$type=='Red'))/length(allwine$type)
+
+```
+###Ratio of White Wines
+```{r}
+length(which(allwine$type=='White'))/length(allwine$type)
+
+```
+```{r}
+ggplot(aes(x=taste),data=allwine)+
+  geom_histogram(aes(color=type),stat = 'count')+
+  ggtitle("")
+
+```
+The type of wine doesn't seem to change the quality grading for the wines, as it does not effect the distribution of quality. The surprising factor noticed in this look is the NA grading, we must wrangle our data to discover why NA exists and if we should exclude those variables or keep.(Edit: NA has been removed and is now indicated as Best, our quality numbers in quality histogram for some reason doesn't show any quality of being 9 must look further to see a resolution of showing such variables)
+
+
+
+```{r}
+NA_taste<- subset(allwine,is.na(allwine$taste))
+NA_taste
+```
+
+##Deeper Look of Data Composition based on Quality
+
+```{r}
+###Subset wines based on Quality
+best_wines<-subset(allwine,allwine$quality>6)
+worst_wines<-subset(allwine,allwine$quality<5)
+avg_wines<-subset(allwine,allwine$quality==5| allwine$quality==6 )
+count(avg_wines)
+```
+
+###Best Wines
+```{r}
+str(best_wines)
+
+count(best_wines)/count(allwine)
+count(best_wines)
+count(allwine)
+```
+
+Are sample pool drops to only 1,277 obs, when we look at wines with quality better than 6/Slightly good. Therefore, wines that are in the categories of good, very good, and best make up 20% of our sample pool.
+
+###Worst Wines
+
+```{r}
+str(worst_wines)
+
+count(worst_wines)/count(allwine)
+
+
+```
+
+The sample for worst wines is even smaller, with only 246 obs. These are all wines that scored less than 5/slightly bad. So only about 4% of our sample pulls is composed of wines with a taste indicator of very bad, and bad.
+
+###Average Wines
+```{r}
+str(avg_wines)
+
+count(avg_wines)/count(allwine)
+
+```
+
+
+This showcases that most of our wines are in the 'slightly' category, or are of average quality making about 76% of our total sample pool. This would indicate that looking at all the factors means and medians would bring forth an average wine, it might be good to get another sample with more bad and good tasting wines, to further showcase differences and help our model find build a better regression.(Will work with current data, but good option)
+
+
+Let's take a look at how alcohol and sugar contents vary with the better wines.
+
+#Alcohol Comparisons
+
+```{r}
+ggplot(aes(x=alcohol), data=best_wines)+
+  geom_histogram(bins = 80)+
+  ggtitle("Best Wines Alcohol")
+
+
+```
+
+```{r}
+summary(best_wines$alcohol)
+```
+
+This is very enticing information, as all the best wines had higher alcohol content than our overall pool, you can notice that the lowest alcohol content is 8.5%. A wine maybe be chosen for it sheer alcohol content and its capability of getting someone intoxicated.  
+
+```{r}
+ggplot(aes(x=alcohol), data=worst_wines)+
+  geom_histogram(bins=80)+
+  ggtitle("Worst Wines Alcohol")
+```
+
+```{r}
+summary(worst_wines$alcohol)
+```
+
+This breaks up our last judgement that higher alcohol content is a thriving factor for better tasting wine, as we can see the worst wines in our sample pool obtained similar data as the best. There most be other thriving factors that cause wines to score better.
+
+```{r}
+ggplot(aes(x=alcohol), data=avg_wines)+
+  geom_histogram(bins=80)+
+  ggtitle("Average Wines Alcohol")
+```
+This is interesting as the average wines seem to follow a more normal distribution, with more of the alcohol types being clustered around a 9 to 10 percent alcohol content. This may have occured as there is a larger set of data to look at evening out the distribution. 
+
+
+```{r}
+summary(avg_wines$alcohol)
+```
+#Sugar Comparsion
+
+```{r}
+#Subsetting data based on types of wines
+bw_sugars<-ggplot(aes(x=residual.sugar), data= best_wines)+
+  geom_histogram(bins=80)+
+  ggtitle("Best Wines Sugar")
+
+ww_sugars<-ggplot(aes(x=residual.sugar), data= worst_wines)+
+  geom_histogram(bins=80)+
+  ggtitle("Worst Wines Sugar")
+
+avg_sugars<-ggplot(aes(x=residual.sugar), data= avg_wines)+
+  geom_histogram(bins=80)+
+  scale_x_continuous(limits=c(0,quantile(avg_wines$residual.sugar,.99)), breaks=seq(0,quantile(avg_wines$residual.sugar,.99),1))+
+  ggtitle("Average Wines Sugar")
+
+
+grid.arrange(bw_sugars,ww_sugars,avg_sugars)
+```
+
+
+As we look into the comparison between worst and best, we start to notice that both Sugar and Alcohol content is very similar. This indicates that those two variables should not be the driving factors towards better tasting wine. Average Wines Sugar does get clustered more towards 1 to 3 g/l, which also may be from the bigger data pool
+
+Let us look at the our whole data set and see how alcohol content changes in regards to taste and type of wine.
+
+#Deeper look at Alcohol Composition
+```{r}
+
+ggplot(aes(x=alcohol), data=allwine)+
+  geom_histogram(aes(color=allwine$taste),bins=40)+
+  scale_color_brewer(type = 'qual') +
+  ggtitle("Alcohol Content based on Taste Quality")
+  
+
+```
+
+```{r}
+ggplot(aes(x=alcohol),data = allwine)+
+  geom_histogram(aes(color=type),bins=40)+
+  ggtitle("Alcohol Content based on Wine Type")
+
+```
+
+A deeper look at alcohol content does showcase some trends of better wines in taste have a higher portion of the sample pull of in higher alcohol percentage. The type of alcohol is indicated in our graphs, so it would be interesting to see if red or white does effect the taste of quality in effect with alcohol percentage. 
+
+###Similar look at Sugar
+Let's do the same analysis on sugar content to better see the differentiation
+
+
+```{r}
+ggplot(aes(x=residual.sugar),data=allwine)+
+  geom_histogram(aes(color=taste),bins=100)+
+  coord_cartesian(xlim=c(0,quantile(allwine$residual.sugar,.99)))
+```
+
+```{r}
+ggplot(aes(x=residual.sugar),data=allwine)+
+  geom_histogram(aes(color=type),bins=100)+
+  coord_cartesian(xlim=c(0,quantile(allwine$residual.sugar,.99)))
+
+```
+Breaking down sugar into taste, doesn't really help indicate how sugar effected the quality of wine. But it does clear out a picture that white wines are typically sweeter.
+
+We must look into other variables, to help determine what really brings out the best wine taste. But before we change the variables we are examining, let's take a different look at the same variables.
+
+A good look would be not to separate both, and include all quality of wines in one graph, box plot, and see where the medians/means are based on quality. See Below:
+
+
+```{r}
+alch_q_point<-ggplot(aes(x=quality,y=alcohol),data=allwine)+
+  geom_point(alpha=1/20)
+
+alch_q_point
+
+
+ggplot(aes(x=quality,y=alcohol),data=allwine)+
+  geom_boxplot()+
+  stat_summary(fun.y = mean,geom = 'point',shape=4)+
+  stat_summary(fun.y=median,geom='point', shape=1)+
+  ggtitle("Means and Medians of Alcohol Conent Based and Taste Quality")
+  #geom_point(aes(shape="mean"),)+
+  #guides(shape=guide_legend(title=NULL,override.aes = list(alpha=1)))+
+  
+
+
+
+
+```
+As we can see most of the alcohol contents is in the surrounding areas of 5-10. It does look like the better quality wines do typically have a higher percentage of alcohol then the mean/median. This would contradict our previous claim that alcohol content wouldn't effect overall quality, but the reason why it could be so skewed is the smaller data sets in bad and good tasting wines in our data pool. The medians (circles) of each quality also follow a similar pattern as our means(x), of trending upward in alcohol content as taste increases.
+```{r}
+#redwine$taste<-cut(redwine$quality,breaks=c(0,3,4,5,6,7,8),labels=c("Very Bad","Bad","Slightly Bad","Slightly Good","Good","Very Good"))
+
+ggplot(aes(x=taste,y=alcohol),data=allwine)+
+  geom_boxplot(aes(color=type))+
+  stat_summary(fun.y = mean,geom = 'point',shape=4)
+  
+```
+Looking at the same data in a different view, we can see how alcohol content does increase as overall taste increase. This can be seen by the slight linear increase in median and means for each category. This helps us determine that alcohol is a determining factor for improvement in rating for a typical wine. You can also notice that the alcohol content for the type of wine is around the same percentage. This could be enticing as alcohol content can be the driving factor for better taste and the distinction of the type of wine not being an indicator of quality. Red wine do typically have a higher alcohol percentage though, for the better tasting wines. Overall summary does indicate that the type of wine doesn't change in median and mean see below for Summaries.
+
+It would be good to look at how quality changes as alcohol a sulfur dioxide change?
+
+###Red Wine Alcohol Summary
+
+```{r}
+summary(redwine$alcohol)
+```
+
+###White Wine Alcohol Summary
+```{r}
+summary(whitewine$alcohol)
+```
+
+Examining both alcohol statistics, it appears there is no differentiation in alcohol content based on wine type.
+#A look at Total Sulfur Dioxide in Wine and how it Effects Taste Rating
+
+```{r}
+ggplot(aes(x=taste,y=total.sulfur.dioxide), data= allwine)+
+  geom_boxplot()+
+  stat_summary(fun.y = mean,geom = 'point', shape = 4)+
+  ggtitle("Taste V Total Sulfar Dioxide")
+
+
+alc_sulfur<-ggplot(aes(x=alcohol,y=total.sulfur.dioxide),data = allwine)+
+  geom_point()+
+  ggtitle("Alcohol v Total Sulfar Dioxide")
+
+
+alc_sulfur_q<-ggplot(aes(x=alcohol,y=total.sulfur.dioxide),data = allwine)+
+  geom_point()+
+  coord_cartesian(ylim = c(0,quantile(allwine$total.sulfur.dioxide,.99)))+
+ggtitle("Alcohol V Total Sulfur Dioxide (Top 99 %)")
+
+alc_sulfur_q_taste<-ggplot(aes(x=alcohol,y=total.sulfur.dioxide),data = allwine)+
+  geom_point(aes(color=taste))+
+  coord_cartesian(ylim = c(0,quantile(allwine$total.sulfur.dioxide,.99)))+
+  ggtitle("Alcohol V Total Sulfur Dioxide (Top 99 %)")+
+  geom_smooth()
+
+
+
+alc_sulfur_q_type<-ggplot(aes(x=alcohol,y=total.sulfur.dioxide),data = allwine)+
+  geom_point(aes(color=type))+
+  coord_cartesian(ylim = c(0,quantile(allwine$total.sulfur.dioxide,.99)))+
+ ggtitle("Alcohol V Total Sulfur Dioxide (Top 99 %)")+
+  geom_smooth()
+
+```
+
+```{r}
+ggplot(aes(x=alcohol,y=total.sulfur.dioxide),data=allwine)+
+  geom_point()+
+  coord_cartesian(ylim = c(0,quantile(allwine$total.sulfur.dioxide,.99)))+
+  facet_wrap(~taste)+
+  ggtitle("Alcohol V Total Sulfur Dioxide 99 Percentile - Wrapped by Taste Rating")
+```
+
+
+###Correlation between Wine Quality and Total Sulfur Dioxide
+```{r}
+cor(allwine$quality,allwine$total.sulfur.dioxide)
+```
+Looking at Sulfur Dioxide, there seems to be no correlation between sulfur dioxide and taste. The correlation between both is a meager -0.041 and looking at the box plots they trend towards 100 and 150 total sulfur dioxide content, for all taste types. 
+```{r}
+alc_sulfur
+```
+
+```{r}
+alc_sulfur_q
+```
+
+```{r}
+alc_sulfur_q_taste
+```
+```{r}
+alc_sulfur_q_type
+```
+Looking further in our details, it is easy to determine that sulfur dioxide does not really change the overall taste of wine. The most determining factor looks like alcohol, as the higher the percentage the more good tasting alcohols fill the graph. The mean of sulfur dioxide does increase as the alcohol percentage increases, but this is probably just because of our limited sample pool of higher percentage alcohol. 
+
+An enticing view though is that White Wines have higher sulfur dioxide content, this could be a way the wine is made, and why white wines have different taste than red wines. This doesn't help us determine how to make a better wine, as indicated by the series of graphs above that went into detail if sulfur dioxide changes how much a person my like the taste of wine, but it does show that white wines typically have higher percentages.
+
+```{r}
+#Commented out as it does not provide any details toward Total Sulfur Dioxide and taste
+#ggplot(aes(x=taste,y=alcohol),data=allwine)+
+  # geom_point(aes(color=allwine$total.sulfur.dioxide),,position = position_jitter(h=0),alpha=1/2)
+```
+
+
+```{r}
+ggplot(aes(x=total.sulfur.dioxide), data=allwine)+
+  geom_histogram(aes(color=type))+
+  ggtitle("Total Sulfur Dioxide in Wine Types")
+```
+
+##Summary Statistics for Sulfur Dioxide
+###Red Wine Total Sulfur Dioxide
+
+```{r}
+summary(redwine$total.sulfur.dioxide)
+```
+
+###White Wine Total Sulfur Dioxide
+```{r}
+summary(whitewine$total.sulfur.dioxide)
+```
+White wine are sustainably higher in total sulfur dioxide with the median being approx. a 100 more than red wines. It might be worth looking at how both wines differentiate in other factors, but we do know those should not affect grading in test. It would be surprising to see if they actually to effect taste.
+#Alcohol and Sugar Composition
+It would be nice to see how Alcohol and Sugar interact in wine. Are higher sugar wines usually more alcoholic, or the exact opposite. And how does taste change with different composition of both.
+```{r}
+ggplot(aes(x=alcohol,y=residual.sugar),data = allwine)+
+  geom_point(aes(color=taste))+
+  coord_cartesian(ylim = c(0,quantile(allwine$residual.sugar,.99)))+
+ggtitle("Alcohol V Total residual Sugar (Top 99 %) - Effects on Taste")+
+  geom_smooth()
+```
+
+The sweetness of the wine does not look like it effects the overall appreciation of the wine as you can see most of the sugar content is around the mean.The overall taste of the wine mitigates with no distinct pattern in regards to sugar.
+```{r}
+ggplot(aes(x=alcohol,y=residual.sugar),data = allwine)+
+  geom_point(aes(color=type))+
+  coord_cartesian(ylim = c(0,quantile(allwine$residual.sugar,.99)))+
+ggtitle("Alcohol V Total residual Sugar (Top 99 %)- Wine Types")+
+  geom_smooth()
+  
+```
+
+In regards to sugar content, red wines lingers around 0 to 5, whereas white wines varies all over with an equal dispersion. It would be nice to see how these fluctuations effect overall taste quality, but looking at the graph previously, it would suggest no effect.
+
+```{r}
+ggplot(aes(x=alcohol,y=residual.sugar),data = allwine)+
+  geom_point(aes(color=taste),alpha=1/5)+
+  coord_cartesian(ylim = c(0,quantile(allwine$residual.sugar,.99)))+
+ggtitle("Alcohol V Total residual Sugar (Top 99 %) -Wine Types and Taste")+
+  geom_smooth()+
+  facet_grid(~type)
+
+
+```
+It is apparent that Red Wines typically have lower sugar content, and taste rating is not effected by sugar. It does look like the more alcohol content typically gets a higher rating.
+```{r}
+ggplot(aes(x=alcohol,y=residual.sugar),data = allwine)+
+  geom_point(aes(color=type),alpha=1/10)+
+  coord_cartesian(ylim = c(0,quantile(allwine$residual.sugar,.99)))+
+ggtitle("Alcohol V Total residual Sugar (Top 99 %) - Wine Types and Taste")+
+  geom_smooth()+
+  facet_wrap(~taste)
+
+```
+
+As predicted taste quality is not effected at all by sugar content, but white wines due typically have more sugar content than red wines. 
+
+
+#Salt Content in Wines
+##A look at Chlorides
+###Red Wine Chloride Summary Statistics
+```{r}
+summary(redwine$chlorides)
+```
+###White Wine Chloride Summary Statistics
+```{r}
+summary(whitewine$chlorides)
+```
+Salt content changes drastically between White and Red Wines, Red Wines nearly has double the chloride levels compared to White Wines. This determines a change in taste, but how would ratings quality change by the increased salt level.Using the graphs below will help see how rating differentiates based on salt.
+###Charts for Chlorides
+
+```{r}
+ggplot(aes(x=chlorides),data=allwine)+
+  geom_histogram(bins=100,aes(color=type))+
+  ggtitle("Chloride Composistion in Wine Types")
+```
+
+```{r}
+ggplot(aes(x=quality,y=chlorides),data=allwine)+
+  geom_point(aes(color=type))+
+  ggtitle("Quality Change based on Chloride Levels")
+
+
+ggplot(aes(x=alcohol,y=chlorides),data=allwine)+
+  geom_point(aes(color=taste))+
+  facet_grid(~type)+
+  geom_smooth()+
+  ggtitle("Chlorides effecting Alcohol Content")
+
+
+
+```
+Examining the graphs, there is no clear indication of salt content effecting taste rating. Each rating had a wide range of different salt content, indicating that salt does not clearly effect rating. Salt does not affect alcohol content as well.
+```{r}
+
+```
+#Citric Acid's Effect on Ratings
+##A look at Chlorides
+###Red Wine Chloride Summary Statistics
+```{r}
+summary(redwine$citric.acid)
+```
+###White Wine Chloride Summary Statistics
+```{r}
+summary(whitewine$citric.acid)
+```
+The type of wine does not affect Citric Acid levels, as the mean and medians of both Red and White wines are similar.
+###Charts for Citric Acid
+
+```{r}
+ggplot(aes(x=alcohol,y=citric.acid),data=allwine)+
+  geom_point(aes(color=taste))+
+  facet_grid(~type)+
+  geom_smooth()+
+  ggtitle("Citric Acid and Effects on Alcohol")
+  #geom_line(stat='summary',fun.y=mean)
+  
+```
+
+
+```{r}
+ggplot(aes(x=citric.acid),data=allwine)+
+  geom_histogram(bins=100,aes(color=taste))+
+  facet_grid(~type)
+```
+
+
+```{r}
+ggplot(aes(x=quality,y=citric.acid),data=allwine)+
+  geom_point(aes(color=allwine$type))
+```
+Citric Acid which causes a fresh taste to wine, doesn't differ from type or taste of wine. Therefore, testing or playing with citric acid in the range of 0 to 1 will not really effect how someone rates your wine. You shouldn't focus on the freshness of taste of wine as people tend to not care during the consumption of it, based on the graphs above. 
+#Regression Model
+##Examining different variable types and how they affect the taste
+
+```{r}
+?lm
+??mtable
+
+m1<-lm(quality ~alcohol,data=allwine)
+m2<-update(m1,~ .+ total.sulfur.dioxide)
+m3<-update(m2,~ . + type)
+m4<-update(m3,~ . + residual.sugar)
+m5<-update(m4,~ . +citric.acid)
+m6<-update(m5,~ . +pH)
+m7<-update(m6,~.+chlorides)
+
+library(memisc)
+
+mtable(m1,m2,m3,m4,m5,m6,m7)
+
+str(allwine)
+```
+
+Our linear model as taste being effected by any of variables is very indecisive. The R-Squared value of our model is relatively small, indicating that our independent variables don't really determine anything for quality. Our variables only slightly showcase movement in quality with our model describing about 22% percent for taste. Something that isn't surprising is that our R-Squared only increases slightly even with multiple variables being included from our initial model that only contained Alcohol. We have not done analysis on our independent variables to determine that OLS is the best indicator, as there may be heteroscedasticity, auto-correlation, and multi-collinearity within our variables. 
+ 
+#Correlation Between all Variables
+
+```{r}
+cor_all<-subset(allwine,select=-type)
+cor_all<-subset(allwine,select=c(-taste,-type))
+c<-cor(cor_all)
+corrplot(c,method='number',type="lower")
+```
+
+From our correlation plot, there seems to be no correlation between any of variables. There are only a few that are over abs (.6) correlation, which are alcohol and density, and total sulfur dioxide and free sulfur. These make sense as alcohol content does effect Density, and free sulfur dioxide is found in total sulfur dioxide content in our wines.
+```{r}
+chart.Correlation(cor_all,histogram = TRUE,pch=19)
+```
+
+
+
+```{r}
+ggpairs(allwine)
+```
+
+
+```{r}
+
+pairs(cor_all)
+
+
+```
+The main indication we obtain by looking at these various correlation plots is that most of our data does not affect each other. The variables are freely moving and each variable does not affect the others movement. This is important as it does directly relate to why our linear model was not sufficient. 
+
+
+#Summary
+
+Looking at all our data, it seems that our wine sample varied will enough and there was no clear indication based on the variables we had to indicate a better tasting wine. We were able to pinpoint the differences on Red and White Wines on such variables, but weren't able to determine what gave a better rating. Our regression model confirmed that our data's variable set didn't indicate any better ratings. Having a larger data set, or having a different rating system may help us on another data pool.
+
+
